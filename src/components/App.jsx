@@ -1,79 +1,55 @@
+import { useEffect, useRef, useState } from 'react';
 import Searchbar from './Searchbar/Searchbar';
 import ImageGallery from './ImageGallery/ImageGallery';
-import { Component } from 'react';
 import { Loader } from 'components/Loader/Loader';
 import { Button } from 'components/Button/Button';
 import { getImg } from 'services/pixabay-api';
 
-export default class App extends Component {
-  state = {
-    queryImg: '',
-    gallery: [],
-    error: null,
-    status: 'idle',
-    page: 1,
-    totalPage: 0,
-  };
-  componentDidUpdate(_, prevState) {
-    const fetchData = async () => {
-      getImg(this.state.queryImg, this.state.page)
-        .then(res => res.json())
-        .then(img => {
-          this.setState(prevState => ({
-            gallery:
-              prevState.queryImg !== this.state.queryImg
-                ? img.hits
-                : [...prevState.gallery, ...img.hits],
-            status: 'resolved',
-            totalPage: img.totalHits / 12,
-          }));
-        })
-        .catch(error => {
-          this.setState({ error, status: 'rejected' });
-        });
-    };
+export default function App() {
+  const [queryImg, setQueryImg] = useState('');
+  const [gallery, setGallery] = useState([]);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState('idle');
+  const [page, setPage] = useState(1);
+  const [totalPage, setTotalPage] = useState(0);
 
-    if (prevState.queryImg !== this.state.queryImg) {
-      this.setState({ status: 'pending' });
-      fetchData();
-    } else if (prevState.page !== this.state.page) {
-      fetchData();
-    }
-  }
+  useEffect(() => {
+    if (!queryImg) return;
+    if (!gallery) setStatus('pending');
 
-  handleButtonClick = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+    getImg(queryImg, page)
+      .then(res => res.json())
+      .then(img => {
+        setGallery(prev => [...prev, ...img.hits]);
+        setStatus('resolved');
+        setTotalPage(img.totalHits / 12);
+      })
+      .catch(error => {
+        setError(error);
+        setStatus('rejected');
+      });
+  }, [page, queryImg]);
+
+  const handleFormSubmit = imgValue => {
+    setQueryImg(imgValue);
+    setGallery([]);
+    setPage(1);
   };
-  handleFormSubmit = imgValue => {
-    this.setState({
-      queryImg: imgValue,
-      page: 1,
-      gallery: [],
-    });
+  const handleButtonClick = () => {
+    setPage(prev => prev + 1);
   };
 
-  render() {
-    const { status, error, gallery, page, totalPage } = this.state;
-
-    return (
-      <div className="app">
-        <Searchbar onSubmit={this.handleFormSubmit} />
-        {status === 'rejected' && <p p> {error.message}</p>}
-        {status === 'pending' && <Loader />}
-        {status === 'resolved' && <ImageGallery img={this.state.gallery} />}
-        {gallery.length !== 0 && page < totalPage && (
-          <Button
-            type="button"
-            className="Button"
-            onClick={this.handleButtonClick}
-          >
-            Load more
-          </Button>
-        )}
-      </div>
-    );
-    // }
-  }
+  return (
+    <div className="app">
+      <Searchbar onSubmit={handleFormSubmit} />
+      {status === 'rejected' && <p> {error.message}</p>}
+      {status === 'pending' && <Loader />}
+      {status === 'resolved' && <ImageGallery img={gallery} />}
+      {gallery.length !== 0 && page < totalPage && (
+        <Button type="button" className="Button" onClick={handleButtonClick}>
+          Load more
+        </Button>
+      )}
+    </div>
+  );
 }
