@@ -3,7 +3,7 @@ import Searchbar from './Searchbar/Searchbar';
 import ImageGallery from './ImageGallery/ImageGallery';
 import { Loader } from 'components/Loader/Loader';
 import { Button } from 'components/Button/Button';
-import { getImg } from 'services/pixabay-api';
+import { getImg, PER_PAGE } from 'services/pixabay-api';
 
 export default function App() {
   const [queryImg, setQueryImg] = useState('');
@@ -15,19 +15,22 @@ export default function App() {
 
   useEffect(() => {
     if (!queryImg) return;
-    if (!gallery) setStatus('pending');
+    if (page === 1) setStatus('pending');
 
-    getImg(queryImg, page)
-      .then(res => res.json())
-      .then(img => {
-        setGallery(prev => [...prev, ...img.hits]);
+    const fenchImg = async () => {
+      try {
+        const images = await getImg(queryImg, page);
+
+        setGallery(prev => [...prev, ...images.hits]);
         setStatus('resolved');
-        setTotalPage(img.totalHits / 12);
-      })
-      .catch(error => {
-        setError(error);
+        setTotalPage(images.totalHits / PER_PAGE);
+      } catch (error) {
+        setError(error.message);
         setStatus('rejected');
-      });
+      }
+    };
+
+    fenchImg();
   }, [page, queryImg]);
 
   const handleFormSubmit = imgValue => {
@@ -43,6 +46,7 @@ export default function App() {
     <div className="app">
       <Searchbar onSubmit={handleFormSubmit} />
       {status === 'rejected' && <p> {error.message}</p>}
+
       {status === 'pending' && <Loader />}
       {status === 'resolved' && <ImageGallery img={gallery} />}
       {gallery.length !== 0 && page < totalPage && (
